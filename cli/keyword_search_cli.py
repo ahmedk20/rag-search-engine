@@ -1,104 +1,72 @@
 import argparse
 
-from lib.keyword_search import (
-    bm25_idf_command,
-    bm25_tf_command,
-    bm25search_command,
-    build_command,
-    idf_command,
-    search_command,
-    tf_command,
-    tfidf_command,
+from lib.semantic_search import (
+    chunk_text,
+    embed_query_text,
+    embed_text,
+    semantic_search,
+    verify_embeddings,
+    verify_model,
 )
-from lib.search_utils import BM25_B, BM25_K1
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Keyword Search CLI")
+    parser = argparse.ArgumentParser(description="Semantic Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    subparsers.add_parser("build", help="Build the inverted index")
+    subparsers.add_parser("verify", help="Verify that the embedding model is loaded")
 
-    search_parser = subparsers.add_parser("search", help="Search movies using BM25")
+    single_embed_parser = subparsers.add_parser(
+        "embed_text", help="Generate an embedding for a single text"
+    )
+    single_embed_parser.add_argument("text", type=str, help="Text to embed")
+
+    subparsers.add_parser(
+        "verify_embeddings", help="Verify embeddings for the movie dataset"
+    )
+
+    embed_query_parser = subparsers.add_parser(
+        "embed_query", help="Generate an embedding for a search query"
+    )
+    embed_query_parser.add_argument("query", type=str, help="Query to embed")
+
+    search_parser = subparsers.add_parser(
+        "search", help="Search for movies using semantic search"
+    )
     search_parser.add_argument("query", type=str, help="Search query")
-
-    tf_parser = subparsers.add_parser(
-        "tf", help="Get term frequency for a given document ID and term"
-    )
-    tf_parser.add_argument("doc_id", type=int, help="Document ID")
-    tf_parser.add_argument("term", type=str, help="Term to get frequency for")
-
-    idf_parser = subparsers.add_parser(
-        "idf", help="Get inverse document frequency for a given term"
-    )
-    idf_parser.add_argument("term", type=str, help="Term to get IDF for")
-
-    tf_idf_parser = subparsers.add_parser(
-        "tfidf", help="Get TF-IDF score for a given document ID and term"
-    )
-    tf_idf_parser.add_argument("doc_id", type=int, help="Document ID")
-    tf_idf_parser.add_argument("term", type=str, help="Term to get TF-IDF score for")
-
-    bm25_idf_parser = subparsers.add_parser(
-        "bm25idf", help="Get BM25 IDF score for a given term"
-    )
-    bm25_idf_parser.add_argument(
-        "term", type=str, help="Term to get BM25 IDF score for"
+    search_parser.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return"
     )
 
-    bm25_tf_parser = subparsers.add_parser(
-        "bm25tf", help="Get BM25 TF score for a given document ID and term"
+    chunk_parser = subparsers.add_parser(
+        "chunk", help="Split text into fixed-size chunks with optional overlap"
     )
-    bm25_tf_parser.add_argument("doc_id", type=int, help="Document ID")
-    bm25_tf_parser.add_argument("term", type=str, help="Term to get BM25 TF score for")
-    bm25_tf_parser.add_argument(
-        "k1", type=float, nargs="?", default=BM25_K1, help="Tunable BM25 K1 parameter"
+    chunk_parser.add_argument("text", type=str, help="Text to chunk")
+    chunk_parser.add_argument(
+        "--chunk-size", type=int, default=200, help="Size of each chunk in words"
     )
-    bm25_tf_parser.add_argument(
-        "b", type=float, nargs="?", default=BM25_B, help="Tunable BM25 b parameter"
+    chunk_parser.add_argument(
+        "--overlap",
+        type=int,
+        default=0,
+        help="Number of words to overlap between chunks",
     )
-
-    bm25search_parser = subparsers.add_parser(
-        "bm25search", help="Search movies using full BM25 scoring"
-    )
-    bm25search_parser.add_argument("query", type=str, help="Search query")
 
     args = parser.parse_args()
 
     match args.command:
-        case "build":
-            print("Building inverted index...")
-            build_command()
-            print("Inverted index built successfully.")
+        case "verify":
+            verify_model()
+        case "embed_text":
+            embed_text(args.text)
+        case "verify_embeddings":
+            verify_embeddings()
+        case "embed_query":
+            embed_query_text(args.query)
         case "search":
-            print("Searching for:", args.query)
-            results = search_command(args.query)
-            for i, res in enumerate(results, 1):
-                print(f"{i}. ({res['id']}) {res['title']}")
-        case "tf":
-            tf = tf_command(args.doc_id, args.term)
-            print(f"Term frequency of '{args.term}' in document '{args.doc_id}': {tf}")
-        case "idf":
-            idf = idf_command(args.term)
-            print(f"Inverse document frequency of '{args.term}': {idf:.2f}")
-        case "tfidf":
-            tf_idf = tfidf_command(args.doc_id, args.term)
-            print(
-                f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}"
-            )
-        case "bm25idf":
-            bm25idf = bm25_idf_command(args.term)
-            print(f"BM25 IDF score of '{args.term}': {bm25idf:.2f}")
-        case "bm25tf":
-            bm25tf = bm25_tf_command(args.doc_id, args.term, args.k1, args.b)
-            print(
-                f"BM25 TF score of '{args.term}' in document '{args.doc_id}': {bm25tf:.2f}"
-            )
-        case "bm25search":
-            print("Searching for:", args.query)
-            results = bm25search_command(args.query)
-            for i, res in enumerate(results, 1):
-                print(f"{i}. ({res['id']}) {res['title']} - Score: {res['score']:.2f}")
+            semantic_search(args.query, args.limit)
+        case "chunk":
+            chunk_text(args.text, args.chunk_size, args.overlap)
         case _:
             parser.print_help()
 
