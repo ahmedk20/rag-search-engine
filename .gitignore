@@ -5,8 +5,11 @@ build/
 dist/
 wheels/
 *.egg-info
-/data/
+/data/*
+!/data/README.md
 # Virtual environments
 .venv
 .env
 cache/
+.idea/
+.pytest_cache/
